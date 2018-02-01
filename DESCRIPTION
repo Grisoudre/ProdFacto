@@ -1,7 +1,7 @@
 Package: ProdFacto
 Type: Package
 Title: Analyses factorielles
-Version: 0.1.4
+Version: 0.1.5
 Imports: shiny,
          FactoMineR,
          stringr,
@@ -18,8 +18,6 @@ Imports: shiny,
          DT,
          ggplot2,
          GDAtools,
-         nleqslv,
-         Cairo,
          dplyr,
          tidyr
 Author: Grisoudre
