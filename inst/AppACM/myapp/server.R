@@ -1,6 +1,6 @@
-#=====================================================
-# Packages
-#=====================================================
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# Packages -----
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 library(shiny)
 library(FactoMineR)
@@ -16,12 +16,107 @@ library(questionr)
 library(tidyr)
 
 library(dplyr)
+library(GDAtools)
 
 options(shiny.maxRequestSize=30*1024^2)
-#=====================================================
-# Fonctions pour les graphiques
-#=====================================================
 
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# Fonctions pour les graphiques -----------
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+# ACM Spéciales :
+
+
+
+# MCA Var plot sans fixe = T
+MCA_var_data <- function(res, xax = 1, yax = 2, var_sup = TRUE, var_lab_min_contrib = 0) {
+  tmp_x <- res$vars %>%
+    arrange(Axis, Type, Variable) %>%
+    filter(Axis == xax) %>%
+    select_("Variable", "Level", "Type", "Class", "Coord", "Contrib", "Cos2", "Count")
+  tmp_y <- res$vars %>% 
+    filter(Axis == yax) %>%
+    select_("Variable", "Level", "Type", "Class", "Coord", "Contrib", "Cos2", "Count")
+  if (!(var_sup)) {
+    tmp_x <- tmp_x %>% filter(Type == 'Active')
+    tmp_y <- tmp_y %>% filter(Type == 'Active')
+  }
+  tmp <- tmp_x %>%
+    left_join(tmp_y, by = c("Variable", "Level", "Type", "Class", "Count")) %>%
+    mutate(Contrib = Contrib.x + Contrib.y,
+           Cos2 = Cos2.x + Cos2.y,
+           tooltip = paste(paste0("<strong>", Level, "</strong><br />"),
+                           paste0("<strong>",
+                                  gettext("Variable", domain = "R-explor"),
+                                  ":</strong> ", Variable, "<br />"),
+                           paste0("<strong>Axis ",xax," :</strong> ", Coord.x, "<br />"),
+                           paste0("<strong>Axis ", yax," :</strong> ", Coord.y, "<br />"),
+                           ifelse(is.na(Cos2), "",
+                                  paste0("<strong>",
+                                         gettext("Squared cosinus", domain = "R-explor"),
+                                         ":</strong> ", Cos2, "<br />")),
+                           ifelse(is.na(Contrib), "",
+                                  paste0("<strong>",
+                                         gettext("Contribution:", domain = "R-explor"),
+                                         "</strong> ", Contrib, "<br />")),
+                           ifelse(is.na(Count), "",
+                                  paste0("<strong>",
+                                         gettext("Count:", domain = "R-explor"),
+                                         "</strong> ", Count))),
+           Lab = ifelse(Contrib >= as.numeric(var_lab_min_contrib) | 
+                          is.na(Contrib) & as.numeric(var_lab_min_contrib) == 0, Level, ""))
+  data.frame(tmp)
+}
+
+
+MCA_var_plot2 <- function(res, xax = 1, yax = 2, var_sup = TRUE, var_lab_min_contrib = 0,
+                         point_size = 64,
+                         col_var = NULL,
+                         symbol_var = NULL,
+                         size_var = NULL,
+                         size_range = c(10,300),
+                         zoom_callback = NULL,
+                         in_explor = FALSE, ...) {
+  
+  ## Settings changed if not run in explor
+  html_id <- if(in_explor) "explor_var" else  NULL
+  dom_id_svg_export <- if(in_explor) "explor-var-svg-export" else NULL
+  dom_id_lasso_toggle <- if(in_explor) "explor-var-lasso-toggle" else NULL
+  lasso <- if(in_explor) TRUE else FALSE 
+  lasso_callback <- if(in_explor) explor_multi_lasso_callback() else NULL
+  zoom_callback <- if(in_explor) explor_multi_zoom_callback(type = "var") else NULL
+  
+  var_data <- MCA_var_data(res, xax, yax, var_sup, var_lab_min_contrib)
+  
+  scatterD3::scatterD3(
+    x = var_data[, "Coord.x"],
+    y = var_data[, "Coord.y"],
+    xlab = names(res$axes)[res$axes == xax],
+    ylab = names(res$axes)[res$axes == yax],
+    lab = var_data[, "Lab"],
+    point_size = point_size,
+    point_opacity = 1,
+    col_var = if (is.null(col_var)) NULL else var_data[,col_var],
+    col_lab = col_var,
+    symbol_var = if (is.null(symbol_var)) NULL else var_data[,symbol_var],
+    symbol_lab = symbol_var,
+    size_var = if (is.null(size_var)) NULL else var_data[,size_var],
+    size_lab = size_var,
+    size_range = if (is.null(size_var)) c(10,300) else c(30,400) * point_size / 32,
+    tooltip_text = var_data[, "tooltip"],
+    type_var = ifelse(var_data[,"Class"] == "Quantitative", "arrow", "point"),
+    unit_circle = var_sup && "Quantitative" %in% var_data[,"Class"],
+    key_var = paste(var_data[, "Variable"], var_data[, "Level"], sep = "-"),
+    fixed = FALSE,
+    html_id = html_id,
+    dom_id_svg_export = dom_id_svg_export,
+    dom_id_lasso_toggle = dom_id_lasso_toggle,
+    lasso = lasso,
+    lasso_callback = lasso_callback,
+    zoom_callback = zoom_callback,
+    ...
+  )  
+}
 # Adaptation des graphiques des individus d'explor (Julien Barner) :
 MCA_ind_data <- function(res, xax = 1, yax = 2, ind_sup, col_var = NULL, 
                          ind_lab_min_contrib = 0,opacity_var = NULL) {
@@ -103,14 +198,14 @@ MCA_ind_plot <- function(res, xax = 1, yax = 2, ind_sup = TRUE,
   
 }
 
-#=========================================================
-# Fichier server
-#=========================================================
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+# Fichier server ------------
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 shinyServer(function(input, output, session) { 
   
-  # A/ Mise en forme et modifications de la table utilisée pour l'ACM :
-  #===========================================================
+  # A/ Mise en forme et modifications de la table brute importée --------------
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   # Données importées (adaptation d'explore-data, Paris Descartes) :
   output$donnees.fichier.ui <- renderUI({
@@ -247,9 +342,45 @@ shinyServer(function(input, output, session) {
     Choose_Illus <- data.frame(donnees_entree[,Vars])
   })
   
+  ## ACM spéciale : Index pour choix des modalités à exclure :
+  Choose_Spe <- reactive ({
+    TableACM <- TableACM()
+    
+    if (is.null(TableACM)) return (NULL)
+    Choose_Spe <- GDAtools::getindexcat(TableACM)
+  })
   
-  # Elements de sélection / choix / input
-  #=================================================
+  output$Choose_ModaSpe <- renderUI({
+    
+    ACMSpe <- input$ACMSpe
+    
+  #  if (ACMSpe == TRUE ) {
+  #  selectizeInput("ModaSpe", "Choix des modalités à exclure :",
+ #               choices=c(" ",Choose_Spe()) , selected = NULL, multiple = TRUE)  
+  #  }
+  
+  })
+  
+  ListeModaSpe <- reactive({
+    ModaSpe <- input$ModaSpe
+    Choose_Spe <- Choose_Spe()
+    c<-which(as.list(Choose_Spe)== ModaSpe[1])
+    if (length(ModaSpe)<2){
+      c<-which(as.list(Choose_Spe)== ModaSpe[1])
+    }else{
+      c<-which(as.list(Choose_Spe)== ModaSpe[1])
+      #if (length(VarsIllus>1))
+      for (i in 2:length(ModaSpe)) {
+        c <- c(c, which(as.list(Choose_Spe)== ModaSpe[i]))
+      }
+    }
+    c
+    
+  })
+  
+  
+  # Elements de sélection / choix / input -----
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   # Sélection des individus :
   
@@ -413,8 +544,8 @@ shinyServer(function(input, output, session) {
   })
   
   
-  # B/ Création de la table selon les sous-ensembles définis :
-  #===========================================================
+  # B/ Création de la table selon les sous-ensembles définis ----------------
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   
   Critere1 <- reactive({
@@ -519,9 +650,8 @@ shinyServer(function(input, output, session) {
   })
 
   
-# Création de la table pour l'ACM selon les variables conservées et des divers résultats :
-#=====================================================================
-
+# Création de la table pour l'ACM selon les variables conservées ----
+#\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   
   # Définition des variables illustratives :
@@ -685,16 +815,29 @@ shinyServer(function(input, output, session) {
     tmp<-TableACM()
     Illus <- Illus()
     IllusQuanti <- IllusQuanti()
+    ListeModaSpe <- ListeModaSpe()
+  #  ACMSpe <- input$ACMSpe
+  #  if (ACMSpe == TRUE) {
+  #    ACM <- GDAtools::speMCA(tmp)
+  #  } else {
     
     ACM <- MCA(tmp, quali.sup =  eval(parse(text=Illus)),
-               quanti.sup=eval(parse(text=IllusQuanti)))
-    
-    
+               quanti.sup=eval(parse(text=IllusQuanti)), graph = F)
+#    }
+    ACM
   })
+  
+  
   # Préparation des données pour les représentations :
   res <- reactive({
+    ACMSpe <- input$ACMSpe
     ACM <- ACM()
+    
+  #  if (ACMSpe == TRUE) {
+  #   res <- explor::prepare_results.speMCA(ACM)
+   # } else {
     res <- explor::prepare_results(ACM)
+   # }
   })
   
   # Classification ascendante hiérarchique :
@@ -712,8 +855,8 @@ shinyServer(function(input, output, session) {
   })
   
   
-  # C/ EN SORTIE : Tables et graphiques
-  #========================================================
+  # C/ EN SORTIE : Tables et graphiques -----------
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   
   # Table des types de variables conservées pour l'ACM :
@@ -782,13 +925,31 @@ shinyServer(function(input, output, session) {
   #  Valeurs propres :
   
   output$ValeursPropres<-renderTable({
+    NbreAxes <- input$NbreAxes
+    ACM <- ACM()
+    ACMSpe <- input$ACMSpe
+    
     validate(
       need(length(input$VarPourACM)>1, "Choisir au moins 2 variables pour l'ACM")
     )
-    ACM <- ACM()
+
+   # if (ACMSpe == TRUE) {
+      
+    #  ValeursPropres <- data.frame (var=round(ACM$eig[,"rate"],digits=1),
+    #                                VarCumulee=round(ACM$eig[,"cum.rate"],digits=1))
+    #  ValeursPropres$Axe <- row.names(ValeursPropres)
+    #  ValeursPropres <- ValeursPropres[,c(3,1,2)]
+    #  ValeursPropres <- ValeursPropres[1:NbreAxes,]
+    #  ValeursPropres[,1] <- paste("dim",ValeursPropres[,1], " ")
+    #  row.names(ValeursPropres) <- ValeursPropres[,1]
+      
+      
+   # } else {
     ValeursPropres <- data.frame (Axe= row.names(ACM$eig),
                                   var=round(ACM$eig[,"percentage of variance"],digits=1),
                                   VarCumulee=round(ACM$eig[,"cumulative percentage of variance"],digits=1))
+    ValeursPropres <- ValeursPropres[1:NbreAxes,]
+  #  }
   })
   
   # Graphes des valeurs propres :
@@ -796,6 +957,7 @@ shinyServer(function(input, output, session) {
   output$Variance <- renderPlot({
     ACM <- ACM()
     
+    NbreAxes <- input$NbreAxes
     validate(
       need(length(input$VarPourACM)>1, "Choisir au moins 2 variables pour l'ACM")
     )
@@ -803,7 +965,7 @@ shinyServer(function(input, output, session) {
     Val10 <- data.frame (Axe= row.names(ACM$eig),
                                   var=round(ACM$eig[,"percentage of variance"],digits=1),
                                   VarCumulee=round(ACM$eig[,"cumulative percentage of variance"],digits=1))
-    Val10<- Val10[1:10,]
+    Val10<- Val10[1:NbreAxes,]
     
     Val10 <- arrange (Val10,  desc(var))
     Val10$Axe <- factor(Val10$Axe,
@@ -820,10 +982,11 @@ shinyServer(function(input, output, session) {
     
     ACM <- ACM()
     
+    NbreAxes <- input$NbreAxes
     Val10 <- data.frame (Axe= row.names(ACM$eig),
                          var=round(ACM$eig[,"percentage of variance"],digits=1),
                          VarCumulee=round(ACM$eig[,"cumulative percentage of variance"],digits=1))
-    Val10<- Val10[1:10,]
+    Val10<- Val10[1:NbreAxes,]
     
     Val10 <- arrange (Val10,  desc(var))
     Val10$Axe <- factor(Val10$Axe,
@@ -836,6 +999,70 @@ shinyServer(function(input, output, session) {
   
   # Graphiques des variables : 
   
+  output$GraphVarAxeA <- renderScatterD3({
+    
+    validate(
+      need(length(input$VarPourACM)>1, "Choisir au moins 2 variables pour l'ACM")
+    )
+    res <-res()
+    ACM <- ACM()
+    VarAxeA <- input$VarAxeA
+    Graphiques1 <- explor::prepare_results(ACM)
+    MaxCoord1 <- round(max(ACM$var$coord[,VarAxeA]), digits=2)
+    MinCoord1 <- round(min(ACM$var$coord[,VarAxeA]), digits=2)
+    vars <-Graphiques1$vars[Graphiques1$vars[,"Axis"]==VarAxeA,] 
+    ind <-Graphiques1$ind[Graphiques1$ind[,"Axis"]==VarAxeA,] 
+    eig <- Graphiques1$eig[Graphiques1$eig[,"dim"]==VarAxeA,]
+    vareta2<-Graphiques1$vareta2
+    quali_data <- Graphiques1$quali_data
+    
+    
+  Graphiques1 <- list("vars"=vars, "ind"=ind, "eig"=eig,"axes"=as.integer(1), 
+                      "vareta2"=vareta2,"quali_data"=quali_data)
+  
+  Graphiques1$vars <- Graphiques1$vars[Graphiques1$vars$Type == "Active",]
+  
+  Graphiques1$vars <- dplyr::arrange (Graphiques1$vars, Variable)
+  
+  scatterD3::scatterD3(data = Graphiques1$vars, x = Coord, y = Axis, fixed = F,
+                       ylim = c(VarAxeA-.1,VarAxeA+.1) ,
+                       xlim = c(MinCoord1-.5, MaxCoord1+.5),
+                       col_var =  Variable, legend_width = F)
+    })
+ 
+  
+  
+  output$GraphVarAxeB <- renderScatterD3({
+    
+    validate(
+      need(length(input$VarPourACM)>1, "Choisir au moins 2 variables pour l'ACM")
+    )
+    res <-res()
+    ACM <- ACM()
+    Graphiques1 <- explor::prepare_results(ACM)
+    VarAxeB <- input$VarAxeB
+    MaxCoord1 <- round(max(ACM$var$coord[,VarAxeB]), digits=2)
+    MinCoord1 <- round(min(ACM$var$coord[,VarAxeB]), digits=2)
+    vars <-Graphiques1$vars[Graphiques1$vars[,"Axis"]==VarAxeB,] 
+    ind <-Graphiques1$ind[Graphiques1$ind[,"Axis"]==VarAxeB,] 
+    eig <- Graphiques1$eig[Graphiques1$eig[,"dim"]==VarAxeB,]
+    vareta2<-Graphiques1$vareta2
+    quali_data <- Graphiques1$quali_data
+    
+    
+    Graphiques1 <- list("vars"=vars, "ind"=ind, "eig"=eig,"axes"=as.integer(1), 
+                        "vareta2"=vareta2,"quali_data"=quali_data)
+    
+    Graphiques1$vars <- Graphiques1$vars[Graphiques1$vars$Type == "Active",]
+    Graphiques1$vars <- dplyr::arrange (Graphiques1$vars, Variable)
+    
+    scatterD3::scatterD3(data = Graphiques1$vars, x = Axis, y = Coord, fixed = F,
+                         ylim = c(MinCoord1-.5, MaxCoord1+.5),
+                         xlim = c(VarAxeB-.1, VarAxeB+.1) ,
+                         col_var =  Variable, legend_width = F)
+  })
+  
+  
   output$GraphVar <- renderScatterD3({
     
     validate(
@@ -845,11 +1072,13 @@ shinyServer(function(input, output, session) {
     res <-res()
     ACM <- ACM()
     MinContribVar1 <- input$MinContribVar1
-    MaxCoord1 <- round(max(ACM$var$coord[,1]), digits=2)
-    MinCoord1 <- round(min(ACM$var$coord[,1]), digits=2)
-    MaxCoord2 <- round(max(ACM$var$coord[,2]), digits=2)
-    MinCoord2 <- round(min(ACM$var$coord[,2]), digits=2)
-    GraphVar<- explor::MCA_var_plot(res, xax = 1, yax = 2,
+    VarAxeA <- input$VarAxeA
+    VarAxeB <- input$VarAxeB
+    MaxCoord1 <- round(max(ACM$var$coord[,VarAxeA]), digits=2)
+    MinCoord1 <- round(min(ACM$var$coord[,VarAxeA]), digits=2)
+    MaxCoord2 <- round(max(ACM$var$coord[,VarAxeB]), digits=2)
+    MinCoord2 <- round(min(ACM$var$coord[,VarAxeB]), digits=2)
+    GraphVar<- explor::MCA_var_plot(res, xax = VarAxeA, yax = VarAxeB,
                                     var_sup = TRUE, var_lab_min_contrib = MinContribVar1,
                                     col_var = "Variable", symbol_var = "Type",
                                     size_var = "Contrib", size_range = c(52.5, 700),
@@ -858,6 +1087,74 @@ shinyServer(function(input, output, session) {
                                     xlim = c(MinCoord1-.5, MaxCoord1+.5),
                                     ylim = c(MinCoord2-.5, MaxCoord2+.5)) 
   })
+  
+  
+  
+  output$GraphVarAxeC <- renderScatterD3({
+    
+    validate(
+      need(length(input$VarPourACM)>1, "Choisir au moins 2 variables pour l'ACM")
+    )
+    res <-res()
+    ACM <- ACM()
+    VarAxeC <- input$VarAxeC
+    Graphiques1 <- explor::prepare_results(ACM)
+    MaxCoord1 <- round(max(ACM$var$coord[,VarAxeC]), digits=2)
+    MinCoord1 <- round(min(ACM$var$coord[,VarAxeC]), digits=2)
+    vars <-Graphiques1$vars[Graphiques1$vars[,"Axis"]==VarAxeC,] 
+    ind <-Graphiques1$ind[Graphiques1$ind[,"Axis"]==VarAxeC,] 
+    eig <- Graphiques1$eig[Graphiques1$eig[,"dim"]==VarAxeC,]
+    vareta2<-Graphiques1$vareta2
+    quali_data <- Graphiques1$quali_data
+    
+    
+    Graphiques1 <- list("vars"=vars, "ind"=ind, "eig"=eig,"axes"=as.integer(1), 
+                        "vareta2"=vareta2,"quali_data"=quali_data)
+    
+    Graphiques1$vars <- Graphiques1$vars[Graphiques1$vars$Type == "Active",]
+    
+    Graphiques1$vars <- dplyr::arrange (Graphiques1$vars, Variable)
+    
+    scatterD3::scatterD3(data = Graphiques1$vars, x = Coord, y = Axis, fixed = F,
+                         ylim = c(VarAxeC-.1,VarAxeC+.1) ,
+                         xlim = c(MinCoord1-.5, MaxCoord1+.5),
+                         col_var =  Variable, legend_width = F)
+  })
+  
+  
+  
+  output$GraphVarAxeD <- renderScatterD3({
+    
+    validate(
+      need(length(input$VarPourACM)>1, "Choisir au moins 2 variables pour l'ACM")
+    )
+    res <-res()
+    ACM <- ACM()
+    Graphiques1 <- explor::prepare_results(ACM)
+    VarAxeD <- input$VarAxeD
+    MaxCoord1 <- round(max(ACM$var$coord[,VarAxeD]), digits=2)
+    MinCoord1 <- round(min(ACM$var$coord[,VarAxeD]), digits=2)
+    vars <-Graphiques1$vars[Graphiques1$vars[,"Axis"]==VarAxeD,] 
+    ind <-Graphiques1$ind[Graphiques1$ind[,"Axis"]==VarAxeD,] 
+    eig <- Graphiques1$eig[Graphiques1$eig[,"dim"]==VarAxeD,]
+    vareta2<-Graphiques1$vareta2
+    quali_data <- Graphiques1$quali_data
+    
+    
+    Graphiques1 <- list("vars"=vars, "ind"=ind, "eig"=eig,"axes"=as.integer(1), 
+                        "vareta2"=vareta2,"quali_data"=quali_data)
+    
+    Graphiques1$vars <- Graphiques1$vars[Graphiques1$vars$Type == "Active",]
+    Graphiques1$vars <- dplyr::arrange (Graphiques1$vars, Variable)
+    
+    scatterD3::scatterD3(data = Graphiques1$vars, x = Axis, y = Coord, fixed = F,
+                         ylim = c(MinCoord1-.5, MaxCoord1+.5),
+                         xlim = c(VarAxeD-.1, VarAxeD+.1) ,
+                         col_var =  Variable, legend_width = F)
+  })
+  
+  
+  
   output$GraphVar2 <- renderScatterD3({
     
     validate(
@@ -865,21 +1162,23 @@ shinyServer(function(input, output, session) {
     )
     
     res <-res()
-    MinContribVar2 <- input$MinContribVar2
     ACM <- ACM()
-    MaxCoord3 <- round(max(ACM$var$coord[,3]), digits=2)
-    MinCoord3 <- round(min(ACM$var$coord[,3]), digits=2)
-    MaxCoord4 <- round(max(ACM$var$coord[,4]), digits=2)
-    MinCoord4 <- round(min(ACM$var$coord[,4]), digits=2)
-    GraphVar2<- explor::MCA_var_plot(res, xax = 3, yax = 4,
-                                     var_sup = TRUE, var_lab_min_contrib = MinContribVar2,
-                                     col_var = "Variable", symbol_var = "Type",
-                                     size_var = "Contrib", size_range = c(52.5, 700),
-                                     labels_size = 12, point_size = 56,
-                                     transitions = TRUE, labels_positions = NULL,
-                                     xlim = c((MinCoord3-.5), (MaxCoord3+.5)),
-                                     ylim = c((MinCoord4-.5), (MaxCoord4+.5)))
-    GraphVar2
+    MinContribVar2 <- input$MinContribVar2
+    VarAxeC <- input$VarAxeC
+    VarAxeD <- input$VarAxeD
+    MaxCoord3 <- round(max(ACM$var$coord[,VarAxeC]), digits=2)
+    MinCoord3 <- round(min(ACM$var$coord[,VarAxeC]), digits=2)
+    MaxCoord4 <- round(max(ACM$var$coord[,VarAxeD]), digits=2)
+    MinCoord4 <- round(min(ACM$var$coord[,VarAxeD]), digits=2)
+    GraphVar<- explor::MCA_var_plot(res, xax = VarAxeC, yax = VarAxeD,
+                                    var_sup = TRUE, var_lab_min_contrib = MinContribVar2,
+                                    col_var = "Variable", symbol_var = "Type",
+                                    size_var = "Contrib", size_range = c(52.5, 700),
+                                    labels_size = 12, point_size = 56,
+                                    transitions = TRUE, labels_positions = NULL,
+                                    xlim = c(MinCoord3-.5, MaxCoord3+.5),
+                                    ylim = c(MinCoord4-.5, MaxCoord4+.5)) 
+    GraphVar
   })
   
   # Tables des variables :
@@ -949,16 +1248,18 @@ shinyServer(function(input, output, session) {
     res <-res()
     cah <- cah()
     ACM <- ACM()
-    MaxCoord1 <- max(ACM$ind$coord[,1])
-    MinCoord1 <- min(ACM$ind$coord[,1])
-    MaxCoord2 <- max(ACM$ind$coord[,2])
-    MinCoord2 <- min(ACM$ind$coord[,2])
+    IndAxe1 <- input$IndAxe1
+    IndAxe2 <- input$IndAxe2
+    MaxCoord1 <- max(ACM$ind$coord[,IndAxe1])
+    MinCoord1 <- min(ACM$ind$coord[,IndAxe1])
+    MaxCoord2 <- max(ACM$ind$coord[,IndAxe2])
+    MinCoord2 <- min(ACM$ind$coord[,IndAxe2])
     MinContrib1 <- input$MinContrib1
     NbreClasses <- input$NbreClasses
     Ellipse <- input$Ellipse
     
     if (NbreClasses==1) {
-      GraphInd <- MCA_ind_plot(res, xax = 1, yax = 2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
+      GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
                                lab_var = "Name", labels_size = 12,
                                point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
                                ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
@@ -968,7 +1269,7 @@ shinyServer(function(input, output, session) {
       cah$data.clust$Name <- row.names(cah$data.clust)
       res$quali_data <- merge(res$quali_data, cah$data.clust[,c("Name","clust")], by="Name", all.x=T)
       
-      GraphInd <- MCA_ind_plot(res, xax = 1, yax = 2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
+      GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
                                col_var = "clust", lab_var = "Name", labels_size = 12,
                                point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
                                ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
@@ -1113,7 +1414,7 @@ shinyServer(function(input, output, session) {
                             all.x= T)
   })  
   
-  output$TableVarClasses <- renderTable({
+  TableVarClasses <- reactive({
     
     
     IndEtTableDep <- IndEtTableDep()
@@ -1127,7 +1428,7 @@ shinyServer(function(input, output, session) {
         class(IndEtTableDep[,VariableClasses])=="logical"){
       t<-data.frame(cprop(table(IndEtTableDep[,VariableClasses], 
                                 IndEtTableDep [,"Classes"])))
-      t$Freq <- round(t$Freq, 1)
+      t$Freq <- round(t$Freq, 2)
       t <- spread(t, "Var2","Freq")
       names(t)[1] <- VariableClasses
       names(t)[2:(ncol(t)-1)] <- paste0 ("Classe ",names(t)[2:(ncol(t)-1)])
@@ -1151,7 +1452,9 @@ shinyServer(function(input, output, session) {
     
   })
   
-  
+  output$TableVarClasses <- renderTable({
+    TableVarClasses <- TableVarClasses ()
+  })
 
   # output$plot2 <- renderPlot({
   #  cah <- cah()
@@ -1175,10 +1478,10 @@ shinyServer(function(input, output, session) {
   #  })
   
   # D/ Boutons et téléchargements
-  #========================================================
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\===
   
   # A REVOIR / FAIRE - NON UTILISE
-  #=========================================================
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\====
   
   output$DLMetaDonnees <- downloadHandler( 
     
@@ -1272,6 +1575,24 @@ shinyServer(function(input, output, session) {
       write.csv2(donnees_entree, file, fileEncoding = "UTF-8", na = "", row.names = FALSE )
     }
   )
+  
+  output$DlCroisCl <- downloadHandler(
+    
+    
+    filename=function() {
+      
+      VariableClasses <-  input$VariableClasses
+      paste0("Table_",VariableClasses, "_Classes.csv")
+    },
+    content = function(file) {
+      
+      
+      TableVarClasses <- TableVarClasses() 
+      
+      write.csv2(TableVarClasses, file, fileEncoding = "UTF-8", na = "", row.names = FALSE , dec=",")
+    }
+  )
+  
   
   
   # output$PasDID <- renderUI ({

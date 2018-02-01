@@ -133,6 +133,11 @@ shinyUI(
                                checkboxInput("SelectAll", "Tout sélectionner", value=FALSE),
                                uiOutput("SelectACM")
                              ),
+                           #  h4("ACM SPECIALE"),
+                          #   verbatimTextOutput("TEST"),
+                             
+                          #   checkboxInput("ACMSpe", "ACM Spéciale", value= FALSE),
+                           #  uiOutput("Choose_ModaSpe"),
                              h4("2.2. Choix des variables illustratives"),
                              h6("Parmi les variables conservées, sélection de celles 
                                 qui seront considérées comme supplémentaires (projetées 
@@ -146,6 +151,7 @@ shinyUI(
                              h6("Rappel des variables conservées et de leurs types :"),
                              tableOutput("Type")),
                       column(6,
+                             numericInput("NbreAxes", "Nombre d'axes à afficher :", 10),
                              h4("3.1. Valeurs propres"),
                              tableOutput("ValeursPropres"),
                              h4("3.2. Graphiques des VP"),
@@ -157,16 +163,31 @@ shinyUI(
              
              tabPanel("3. Variables : Graphiques",
                       fluidPage(
-                        h4("Graphique des axes 1 et 2"),
+                        h4("Graphique des axes :"),
+                        fluidRow(column(2,numericInput("VarAxeA", "", 1)),
+                                 column(2,  numericInput("VarAxeB", "et", 2))),
+                        
                         numericInput("MinContribVar1",
                                      "Afficher les étiquettes des modalités dont la contribution est
                                      supérieure à : ",2),
-                        scatterD3Output("GraphVar"),
-                        h4("Graphique des axes 3 et 4"),
+                        fluidRow(column(1,scatterD3Output("GraphVarAxeB", width = "75px", height = "600px") ),
+                                 column(11, scatterD3Output("GraphVar"))),
+                        fluidRow(column(1),
+                                 column(11,scatterD3Output("GraphVarAxeA", width = "615px", height = "75px"))),
+                        
+                        
+                        
+                        h4("Graphique des axes :"),
+                        fluidRow(column(2,numericInput("VarAxeC", "", 3)),
+                                 column(2,  numericInput("VarAxeD", "et", 4))),
                         numericInput("MinContribVar2",
                                      "Afficher les étiquettes des modalités dont la contribution est
                                      supérieure à : ",2),
-                        scatterD3Output("GraphVar2"))),
+                        fluidRow(column(1,scatterD3Output("GraphVarAxeD", width = "75px", height = "600px") ),
+                                 column(11, scatterD3Output("GraphVar2"))),
+                        fluidRow(column(1),
+                                 column(11,scatterD3Output("GraphVarAxeC", width = "615px", height = "75px")))
+                        )),
              
              #--------------------------- ONGLET Tableaux des modalités -------------------------#
              
@@ -209,7 +230,8 @@ shinyUI(
                         column(9,
                              h4("4. Croisement des classes avec d'autres variables (% en colonnes pour var quali)"),
                              wellPanel(uiOutput("SelectVarClasses")),
-                             tableOutput("TableVarClasses"))),
+                             tableOutput("TableVarClasses"),
+                             downloadButton("DlCroisCl","Télécharger"))),
                       fluidRow(column(8,h4("5. Classes des individus"),
                                       dataTableOutput("IndEtClasses")),
                                column(4,h4("6. Téléchargements"),
@@ -223,7 +245,11 @@ shinyUI(
              
              
              tabPanel("6. Individus : Graphiques",
-                      fluidPage(h4("Graphique des axes 1 et 2"),
+                      fluidPage(   h4("Graphique des axes :"),
+                                   fluidRow(column(2,numericInput("IndAxe1", "", 1)),
+                                            column(2,  numericInput("IndAxe2", "et", 2))),
+                                
+                                
                                 numericInput("MinContrib1","Afficher les étiquettes des individus dont la contribution est
                                              supérieure à : ",.5),
                                 checkboxInput("Ellipse", "Représenter les ellipses", value=FALSE),
