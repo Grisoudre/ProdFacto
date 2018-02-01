@@ -1,0 +1,32 @@
+Package: ProdFacto
+Type: Package
+Title: Analyses factorielles
+Version: 0.1.4
+Imports: shiny,
+         FactoMineR,
+         stringr,
+         explor,
+         scatterD3,
+         DT,
+         cluster,
+         JLutils,
+         RColorBrewer,
+         stringi,
+         questionr,
+         shinythemes,
+         shinyjs,
+         DT,
+         ggplot2,
+         GDAtools,
+         nleqslv,
+         Cairo,
+         dplyr,
+         tidyr
+Author: Grisoudre
+Maintainer: Grisoudre <crodrigues@parisnanterre.fr>
+Description: Lancement d'une application pour faire une ACM
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Remotes: juba/scatterD3,
+         larmarange/JLutils
