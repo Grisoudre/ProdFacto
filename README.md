@@ -6,7 +6,7 @@ Production d'analyses factorielles (ACM)
 **Installation du package :**
 ```{r}
 if (!require("devtools")) install.packages("devtools", dep=T)
-devtools::install_github("Grisoudre/ProdFactoBeta")
+devtools::install_github("Grisoudre/ProdFacto")
 ```
 
 **Ouverture de l'application :**
