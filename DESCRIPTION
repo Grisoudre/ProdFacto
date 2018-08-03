@@ -11,20 +11,17 @@ Imports: shiny,
          cluster,
          JLutils,
          RColorBrewer,
-         stringi,
          questionr,
          shinythemes,
          shinyjs,
          DT,
-         ggplot2,
          GDAtools,
-         dplyr,
-         tidyr
+         tidyverse
 Author: Grisoudre
 Maintainer: Grisoudre <cecile.rodrigues@cnrs.fr>
 Description: Lancement d'une application pour faire une ACM
 License: CC-NC-SA
 Encoding: UTF-8
 LazyData: true
-Remotes:	juba/scatterD3,
-			larmarange/JLutils 
+Remotes: juba/scatterD3,
+		 larmarange/JLutils 
