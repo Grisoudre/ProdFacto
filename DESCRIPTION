@@ -1,7 +1,7 @@
 Package: ProdFacto
 Type: Package
 Title: Analyses factorielles
-Version: 0.2
+Version: 0.3
 Imports: shiny,
          FactoMineR,
          stringr,
@@ -15,7 +15,6 @@ Imports: shiny,
          shinythemes,
          shinyjs,
          DT,
-         GDAtools,
          tidyverse
 Author: Grisoudre
 Maintainer: Grisoudre <cecile.rodrigues@cnrs.fr>
@@ -23,5 +22,5 @@ Description: Lancement d'une application pour faire une ACM
 License: CC-NC-SA
 Encoding: UTF-8
 LazyData: true
-Remotes:juba/scatterD3,
-		larmarange/JLutils 
+Remotes: juba/scatterD3,
+	 larmarange/JLutils 
