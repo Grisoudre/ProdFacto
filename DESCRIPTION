@@ -15,7 +15,8 @@ Imports: shiny,
          shinythemes,
          shinyjs,
          DT,
-         tidyverse
+         tidyverse,
+         yaml
 Author: Grisoudre
 Maintainer: Grisoudre <cecile.rodrigues@cnrs.fr>
 Description: Lancement d'une application pour faire une ACM
