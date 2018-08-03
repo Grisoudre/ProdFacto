@@ -4,27 +4,29 @@ library(scatterD3)
 library(DT)
 library(shinyjs)
 
-# --------------------------- TITRE -------------------------------#
+# --------------------------- TITRE -------------------------------
 
 shinyUI(  
   navbarPage("Analyse de Correspondances Multiples",
              
              
-             #--------------------------- ONGLET DONNEES / selection -------------------------#
-             
-             tabPanel("1. Chargement",
+#--------------------------- ONGLET DONNEES / selection -------------------------
+         
+             tabPanel(
+               "1. Chargement",
+               
                       fluidPage(
-                        tags$head(tags$style(HTML(
-                          "h6{ background-color: #FFF3BE ; font-size:16px;
-                          font-family: calibri, Arial, sans-serif ; font-size:16px;}")
-                          #,type="text/css",
-                          #          ".shiny-output-error { visibility: hidden; }",
-                          #           ".shiny-output-error:before { visibility: hidden; }"
-                          )
-                        )
                         
-                        ,theme=shinytheme("united"),
-                        column(5,h4("1.1. Fichier à charger (.txt ou .csv)"),
+                        
+                        
+                        # 1ère colonne :
+                        
+                        
+                        column(5,
+                               h6(strong('/!\\ Avant toute opération, cliquer que le bouton "Open in browser" 
+                                   en haut à gauche afin de pouvoir télécharger les résultats') ),
+                               
+                               h4("1.1. Fichier à charger (.txt ou .csv)"),
                                h6("La table brute est une base de données dont les lignes correspondent aux individus statistiques.
                                   Elle doit être en format texte (.txt ou .csv) ; Le délimitateur, 
                                   l'extension du fichier et l'encodage des caractères sont précisés.
@@ -36,20 +38,27 @@ shinyUI(
                                   importé à l'aide du résumé du tableau :"),
                                textOutput("Dimensions"),
                                tableOutput("Resume")),
+                        
+                        # 2ème colonne :
+                        
+                        
                         column(7,
                                fluidRow(column(6, 
-                                               h4("2.1. Choix de l'identifiant (Obligatoire)"),
+                                               h4("2. Choix de l'identifiant (Obligatoire)"),
                                                uiOutput("SelectID"),
-                                               
+                                               uiOutput("ErreurID"),
                                                h6("Si la table ne contient pas d'identifiant
                                                   unique, le bouton ci-dessous permet de 
                                                   télécharger la table à laquelle sera ajouté
-                                                  une variable \"ID\""),
-                                               downloadButton("PasDID",'Télécharger avec ajout d\'un identifiant ("ID")')),
+                                                  une variable \"ID\"."),
+                                               h6(strong("/!\\ Si le tableau comporte déjà une variable\"ID\", elle sera remplacée.")),
+                                               downloadButton("PasDID",'Télécharger avec ajout d\'un identifiant ("ID")')
+                                                                                             ),
                                         
                                         column(6,
-                                               h4("2.2. Noms des individus (Optionnel)"),
-                                               uiOutput("SelectLabelGraphInd"))),
+                                               uiOutput("SelectLabelGraphInd"),
+                                               uiOutput("ErreurLabelGraphInd")
+                                               )),
                                
                                
                                h4("3. Sélection des individus (Optionnel)"),
@@ -112,22 +121,28 @@ shinyUI(
                                                   uiOutput("Select4")))))
                         )),
              
-             #--------------------------- ONGLET ACM / Inertie -------------------------#
+#--------------------------- ONGLET ACM / Inertie -------------------------
              
              tabPanel("2. Modèle et valeurs propres",
                       column(6,
                              
-                             h4("1. Vérifier : Tri à plat des variables"),
+                             h4("1.1. Vérifier : Tri à plat des variables"),
                              h6("Le tri à plat des variables permet de vérifier 
                                si les filtres ont produit la sélection de population attendue."),
                              uiOutput("SelectVarTri"),
                              textOutput("TypeVarTri"),
+                             h4("1.2. Facultatif et uniquement pour les tris à plat"),
+                             selectInput("ChangementVarTri","Changer le type de la variable",
+                                         choices=as.list(c("Pas de modification",
+                                                           "Qualitative",
+                                                           "Quantitative",
+                                                           "Logique")), selected = "Pas de modification"),
                              h4(""),
                              tableOutput("TableVarTri"),
-                             h4("2.1. Sélection des variables pour l'ACM"),
+                             h4("2.1. Sélection des variables pour l'ACM - actives et supplémentaires"),
                              h6("Sélection de l'ensemble 
                                 des variables intégrées à l'ACM, actives ET supplémentaires."),
-                             h6("Pour l'ACM, les variables sont automatiquement converties en 
+                             h6("Pour l'ACM, les variables actives sont automatiquement converties en 
                                 variables qualitatives (peu importe leur nature originale)."),
                              wellPanel(
                                checkboxInput("SelectAll", "Tout sélectionner", value=FALSE),
@@ -151,7 +166,7 @@ shinyUI(
                              h6("Rappel des variables conservées et de leurs types :"),
                              tableOutput("Type")),
                       column(6,
-                             numericInput("NbreAxes", "Nombre d'axes à afficher :", 10),
+                             uiOutput("SelectNbreAxes"),
                              h4("3.1. Valeurs propres"),
                              tableOutput("ValeursPropres"),
                              h4("3.2. Graphiques des VP"),
@@ -159,7 +174,7 @@ shinyUI(
                              plotOutput("VarianceCum"))),
              
              
-             #--------------------------- ONGLET Graphes des modalités -------------------------#
+#--------------------------- ONGLET Graphes des modalités ----------------------
              
              tabPanel("3. Variables : Graphiques",
                       fluidPage(
@@ -189,7 +204,7 @@ shinyUI(
                                  column(11,scatterD3Output("GraphVarAxeC", width = "615px", height = "75px")))
                         )),
              
-             #--------------------------- ONGLET Tableaux des modalités -------------------------#
+#--------------------------- ONGLET Tableaux des modalités -------------------------
              
              tabPanel("4. Variables : Tables",
                       fluidPage(column(6,h4("Variables"), wellPanel(fluidRow(
@@ -211,13 +226,23 @@ shinyUI(
                           dataTableOutput("TableVar2"),
                           downloadButton("DlTableVar2","Télécharger")))),
              
-             #--------------------------- ONGLET Classification -------------------------#
+#--------------------------- ONGLET Classification -------------------------
              
              
              tabPanel("5. Classification",
-                      fluidRow(
-                      column(3,h4("1. Choix du nombre de classes"),
-                             wellPanel(numericInput("NbreClasses",NA,5)))),
+                      fluidRow(column(2, h4("1.1. Type de classification"),
+                                      h6("/!\\ Pour l'instant, que hiérarchique ascendante et l'agrégation par les diamètres ne fonctionne pas"),
+                                      selectInput("Type.Cl", "",
+                                                  choices=as.list(c("Hiérarchique","Non hiérarchique", "Pas de classification")),
+                                                  selected="Hiérarchique")),
+                               column(2,h4("Options de la classification :"),
+                                      uiOutput("NbAxes.Cl.Choix")),
+                               column(2,
+                                      uiOutput("Metric.Cl.Choix"),
+                                      uiOutput("Agreg.Cl.Choix")),
+                               column(2,
+                                      uiOutput("Part.H.Cl.Choix"),
+                                      uiOutput("NbreCl.Cl.Choix"))),
                       fluidRow(
                         column(6,h4("2.1. Dendrodramme"),
                                plotOutput("plot")),
@@ -241,27 +266,32 @@ shinyUI(
                                                      avec les classes') ))),
              
              
-             #--------------------------- ONGLET Graphes des individus -------------------------#
+#--------------------------- ONGLET Graphes des individus -------------------------
              
              
              tabPanel("6. Individus : Graphiques",
-                      fluidPage(   h4("Graphique des axes :"),
+                      fluidPage(  
+                                   h4("Graphique des axes :"),
+                                   
                                    fluidRow(column(2,numericInput("IndAxe1", "", 1)),
                                             column(2,  numericInput("IndAxe2", "et", 2))),
-                                
-                                
-                                numericInput("MinContrib1","Afficher les étiquettes des individus dont la contribution est
-                                             supérieure à : ",.5),
+                                   fluidRow(column(4,h4("Catégories et étiquettes :"),
+                                                   uiOutput("SelectVarClassesGraphe")
+                                                   ),
+                                            column(4,numericInput("MinContrib1","Afficher les étiquettes des individus dont la contribution est
+                                             supérieure à : ",.5))),
                                 checkboxInput("Ellipse", "Représenter les ellipses", value=FALSE),
                                 scatterD3Output("GraphInd"),
                                 
-                                h4("Graphique des axes 3 et 4"),
+                                h4("Graphique des axes :"),
+                                fluidRow(column(2,numericInput("IndAxe3", "", 3)),
+                                         column(2,  numericInput("IndAxe4", "et", 4))),
                                 numericInput("MinContrib2","Afficher les étiquettes des individus dont la contribution est
                                              supérieure à : ",.5),
                                 checkboxInput("Ellipse2", "Représenter les ellipses", value=FALSE),
                                 scatterD3Output("GraphInd2"))),
              
-             #--------------------------- ONGLET Tableaux des individus -------------------------#
+#--------------------------- ONGLET Tableaux des individus -------------------------
              
              
              tabPanel("7. Individus : Tables",
@@ -285,7 +315,7 @@ shinyUI(
                           downloadButton("DlTableInd2","Télécharger")))),
              
       
-             #--------------------------- ONGLET Métadonnées sur la session ACM---------------------#
+#--------------------------- ONGLET Métadonnées sur la session ACM---------------------
              
              tabPanel("8. Données sur la session en cours",
                       fluidPage(
@@ -293,6 +323,25 @@ shinyUI(
                         tableOutput("TableMeta"),
                         downloadButton("DLMetaDonnees", "Télécharger la table")
                       ))
-           
-  )
+#
+# 
+#--------------------------- Mises en forme -------------------------
+# 
+# tags$style(type="text/css",
+#            ".shiny-output-error { visibility: hidden; }",
+#            ".shiny-output-error:before { visibility: hidden; }")
+
+
+, tags$head(tags$style(HTML(
+  "h6{ background-color: #FFF3BE ; font-size:16px;
+  font-family: calibri, Arial, sans-serif ; font-size:16px;}")
+  #,type="text/css",
+  #          ".shiny-output-error { visibility: hidden; }",
+  #           ".shiny-output-error:before { visibility: hidden; }"
+)
+),theme=shinytheme("united")
+
+
+
+ )
 )

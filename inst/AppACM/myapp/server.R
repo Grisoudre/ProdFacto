@@ -2,21 +2,20 @@
 # Packages -----
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-library(shiny)
-library(FactoMineR)
-library(stringr)
-library(explor)
-library(scatterD3)
-library(DT)
-library(cluster)
-library(JLutils)
-library(RColorBrewer)
-library(stringi)
-library(questionr)
-library(tidyr)
-
-library(dplyr)
-library(GDAtools)
+require(shiny)
+require(FactoMineR)
+require(explor)
+require(scatterD3)
+require(DT)
+require(cluster)
+require(JLutils)
+require(RColorBrewer)
+require(questionr)
+require(tidyr)
+require(dplyr)
+require(stringr)
+require(stringi)
+# require(GDAtools)
 
 options(shiny.maxRequestSize=30*1024^2)
 
@@ -25,7 +24,7 @@ options(shiny.maxRequestSize=30*1024^2)
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 # ACM Spéciales :
-
+# A FAIRE ?
 
 
 # MCA Var plot sans fixe = T
@@ -117,7 +116,7 @@ MCA_var_plot2 <- function(res, xax = 1, yax = 2, var_sup = TRUE, var_lab_min_con
     ...
   )  
 }
-# Adaptation des graphiques des individus d'explor (Julien Barner) :
+# Adaptation des graphiques des individus d'explor (Julien Barnier) :
 MCA_ind_data <- function(res, xax = 1, yax = 2, ind_sup, col_var = NULL, 
                          ind_lab_min_contrib = 0,opacity_var = NULL) {
   tmp_x <- res$ind %>% 
@@ -233,10 +232,8 @@ shinyServer(function(input, output, session) {
   })
   file_name <- reactive({
     inFile <- input$donnees.fichier.input
-    
     if (is.null(inFile))
       return("NULL")
-    
     return (stringi::stri_extract_first(str = inFile$name, regex = ".*(?=\\.)"))
   })
   donnees_entree <-reactive({
@@ -252,6 +249,10 @@ shinyServer(function(input, output, session) {
         stringsAsFactors = FALSE)
     }, silent = TRUE)
     don <- unique(don)
+    for (i in 1:ncol(don)){
+      if (class(don[,i])!="numeric" &&class(don[,i])!="integer" )
+   { don[,i][is.na(don[,i])]<-""}}
+    
     don
   })
   
@@ -261,6 +262,7 @@ shinyServer(function(input, output, session) {
     don <- donnees_entree()
     if (is.null(LabelGraphInd)) don 
     row.names(don)<- don[,LabelGraphInd]
+    
     don
   })
   
@@ -390,6 +392,54 @@ shinyServer(function(input, output, session) {
                 choices=c(" ",names(donnees_entree())) , selected = NULL)  
   }) 
   
+  ## Message d'erreur identifiant :
+  
+  
+  output$ErreurID <- renderUI({
+    
+    ID <- input$ID
+    Donnees <- donnees_entree()
+    
+      validate(
+       need(is.null(Donnees)==F , "Charger une table")
+       )
+      
+    if (ID == " ") {return ("Sélectionner une variable")} else{
+    if (length(unique(Donnees[,ID]))==nrow(Donnees)){"Identifiant OK"}else{
+      p("Identifiant pas OK : en choisir un autre ou \n télécharger la table avec un ID :", style = "color:red")
+  }
+    }
+    })
+  
+  # Choix de la variable donnant les noms des étiquettes "individus" :
+  
+  output$SelectLabelGraphInd <- renderUI({
+    selectInput("LabelGraphInd", "Noms des individus (Même variable que l'identifiant, par défaut) :",
+                choices=c(" ",names(donnees_entree())) , selected = input$ID)  
+  }) 
+  
+  
+  ## Message d'erreur étiquette graphe individu :
+  
+  
+  output$ErreurLabelGraphInd <- renderUI({
+    
+    LabelGraphInd <- input$LabelGraphInd
+    Donnees <- donnees_entree()
+    
+    validate(
+      need(is.null(Donnees)==F , "Charger une table")
+    )
+    
+    if (LabelGraphInd == " ") {return ("Sélectionner une variable")}else{
+      if (length(unique(Donnees[,LabelGraphInd]))==nrow(Donnees)){"Label OK"}else{
+        p("Label pas OK : en choisir un autre ou laisser l'identifant pas défaut", style = "color:red")
+        }
+    }
+  })
+  
+  
+  
   # Sélection des variables :
   
   ## Choix des variables pour l'ACM :    
@@ -410,6 +460,21 @@ shinyServer(function(input, output, session) {
   
   ## Choix des variables illustratives de l'ACM :
   output$SelectIllus <- renderUI({
+    
+    ## Validations / erreurs
+    validate(
+      need(nrow(donnees_entree())!=0, "Charger une table (onglet 1)")
+    )
+    
+    
+    validate(
+      need(input$ID!= " ", "Sélectionner un identifiant (onglet 1)")
+    )
+    
+    
+    
+    ## Contenu
+    
     selectizeInput("VarIllusPourACM", "Variables illustratives quali (parmi celles conservées pour l'ACM) :", 
                    choices = names(Choose_Illus()), 
                    selected = NULL, multiple = TRUE,
@@ -418,6 +483,18 @@ shinyServer(function(input, output, session) {
   
   
   output$SelectIllusQuanti <- renderUI({
+    ## Validations / erreurs
+    validate(
+      need(nrow(donnees_entree())!=0, "Charger une table (onglet 1)")
+    )
+    
+    
+    validate(
+      need(input$ID!= " ", "Sélectionner un identifiant (onglet 1)")
+    )
+    
+    
+    ## Contenu
     selectizeInput("VarIllusQuantiPourACM", "Variables illustratives quanti (parmi celles conservées pour l'ACM) :", 
                    choices = names(Choose_Illus()), 
                    selected = NULL, multiple = TRUE,
@@ -427,13 +504,8 @@ shinyServer(function(input, output, session) {
   
   ## Choix des variables illustratives QUANTI de l'ACM :
   
-  
-# Choix de la variable donnant les noms des étiquettes "individus" :
-  output$SelectLabelGraphInd <- renderUI({
-    selectInput("LabelGraphInd", "Noms des individus (Même variable que l'identifiant, par défaut) :",
-                choices=c(" ",names(donnees_entree())) , selected = input$ID)  
-  }) 
 
+  
   # Sélection des variables, opérateurs et modalités de chaque critère :
   
   output$SelectVar1 <- renderUI ({
@@ -542,7 +614,13 @@ shinyServer(function(input, output, session) {
                   max=max(Donnees[,Variable4], na.rm=T), round=1, step=.5, value=0)
     }
   })
-  
+  output$SelectNbreAxes <- renderUI({
+    
+    ACM <- ACM()
+    Max <- nrow(ACM$eig)
+    
+    sliderInput("NbreAxes", "Nombre d'axes à afficher :", min=1, max = Max, value=ifelse(Max < 11, Max, 10), step=1)
+  })
   
   # B/ Création de la table selon les sous-ensembles définis ----------------
   #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -619,7 +697,15 @@ shinyServer(function(input, output, session) {
     don<-switch(input$OperateurMid,
                 " " = Critere1,
                 "OU" =  unique(rbind(Critere1, Critere2)), 
-                "ET" =  unique(merge(Critere1, Crit, by=ID)))
+                "ET" =  {
+                Critere1$tempProdACMVariableImprobable <- rownames(Critere1)
+                testC <- merge(Critere1, Crit, by=ID)
+                rownames(testC) <- testC$tempProdACMVariableImprobable
+                testC$tempProdACMVariableImprobable <- NULL
+                testC
+                }
+                  # unique(merge(Critere1, Crit, by=ID))
+                )
 
   })
   test2 <- reactive({
@@ -631,7 +717,15 @@ shinyServer(function(input, output, session) {
     switch(input$OperateurMid2,
            " " = Critere2,
            "OU" =  unique(rbind(Critere3, Critere2)), 
-           "ET" =  unique(merge(Critere2, Crit, by=ID)))
+           "ET" =  {
+             Critere2$tempProdACMVariableImprobable <- rownames(Critere2)
+             testC <- merge(Critere2, Crit, by=ID)
+             rownames(testC) <- testC$tempProdACMVariableImprobable
+             testC$tempProdACMVariableImprobable <- NULL
+             testC
+           }
+             #unique(merge(Critere2, Crit, by=ID))
+           )
   })
   
   
@@ -639,18 +733,43 @@ shinyServer(function(input, output, session) {
     Critere4 <- Critere4()
     Critere3 <- test2()
     ID <- input$ID
+    
     Crit <- data.frame(Critere4[,ID])
 
     names(Crit)[1]<- ID
     switch(input$OperateurMid3,
            " " = Critere3,
            "OU" =  unique(rbind(Critere4, Critere3)), 
-           "ET" =  unique(merge(Critere3, Crit, by=ID)))
+           "ET" =  {
+             Critere3$tempProdACMVariableImprobable <- rownames(Critere3)
+             testC <- merge(Critere3, Crit, by=ID)
+             rownames(testC) <- testC$tempProdACMVariableImprobable
+             testC$tempProdACMVariableImprobable <- NULL
+             testC
+           } 
+           #  unique(merge(Critere3, Crit, by=ID))
+           )
+
 
   })
 
+  test4 <- reactive({
+    test3 <- test3()
+    VariableTri <- input$VariableTri
+    
+    test4 <- test3
+    test4[,VariableTri] <- switch(input$ChangementVarTri,
+                                  "Pas de modification" = test4[,VariableTri] ,
+                                  "Qualitative" = as.character ( test4[,VariableTri]),
+                                  "Quantitative" =  as.numeric (test4[,VariableTri]),
+                                  "Logique" = as.logical (test4[,VariableTri]))
+    test4 <- test4[!(str_detect(row.names(test4),"NA")),]
+    
+    
+  })
   
-# Création de la table pour l'ACM selon les variables conservées ----
+
+# C/ Création de la table pour l'ACM selon les variables conservées dans le modèle ----
 #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   
@@ -734,31 +853,64 @@ shinyServer(function(input, output, session) {
   # Selection de la variable pour tri à plat :
   
   output$SelectVarTri <- renderUI ({
+    ID <- input$ID
+    if (ID == " ") {return ("")} else {
+    
     selectInput("VariableTri", "Variable :",
                 choices=as.list(c(" ",names(test3()))),selected=" ")
+    }
   })
   
-  
+
   TypeVarTri <- reactive({
-    Donnees <- test3()
+ 
+    Donnees <- test4()
     VariableTri <-  input$VariableTri
-    validate(
-      need(input$VariableTri!=" " , "Choisir une variable")
-    )
-    
     class(Donnees[,VariableTri])
   })
   
-  output$TypeVarTri <- renderText({TypeVarTri()})
+  output$TypeVarTri <- renderText({
+    
+    
+    ## Validations / erreurs 
+    validate(
+      need(nrow(donnees_entree())!=0, "")
+    )
+    validate(
+      need(input$ID!= " ", "")
+    )
+    validate(
+      need(input$VariableTri!= " ", "")
+    )
+    
+    ## Contenu
+    
+      TypeVarTri()
+    })
   
   
   output$TableVarTri <- renderTable({
-    Donnees <- test3()
-    VariableTri <-  input$VariableTri
+    
+   ## Validations / erreurs 
     validate(
-      need(input$VariableTri!=" " , "Choisir une variable")
+      need(nrow(donnees_entree())!=0, "Charger une table (onglet 1)")
     )
     
+    
+    validate(
+      need(input$ID!= " ", "Sélectionner un identifiant (onglet 1)")
+    )
+    
+    
+    validate(
+      need(input$VariableTri!= " ", "Sélectionner une variable")
+    )
+    
+    ## Données
+    Donnees <- test4()
+    VariableTri <-  input$VariableTri
+    
+    ## Contenu
     if (class(Donnees[,VariableTri])=="character" |
         class(Donnees[,VariableTri])=="logical"){
       t<- freq(Donnees[,VariableTri], sort="dec",total = T) 
@@ -805,13 +957,13 @@ shinyServer(function(input, output, session) {
     }
     TableACM
     
-    
   })
   
   
-  # Résultat de l'ACM :
+  # D/ Résultat de l'ACM  ------------
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
-  ACM <-reactive({
+  ACM <- reactive({
     tmp<-TableACM()
     Illus <- Illus()
     IllusQuanti <- IllusQuanti()
@@ -821,10 +973,11 @@ shinyServer(function(input, output, session) {
   #    ACM <- GDAtools::speMCA(tmp)
   #  } else {
     
-    ACM <- MCA(tmp, quali.sup =  eval(parse(text=Illus)),
+    ACM <- MCA(tmp, quali.sup =  eval(parse(text=Illus)), ncp=100,
                quanti.sup=eval(parse(text=IllusQuanti)), graph = F)
 #    }
     ACM
+    
   })
   
   
@@ -840,22 +993,105 @@ shinyServer(function(input, output, session) {
    # }
   })
   
-  # Classification ascendante hiérarchique :
-  cah <- reactive({
+  # Choix pour la classification ---------------
+  
+  output$NbAxes.Cl.Choix <- renderUI({
+    Type.Cl <- input$Type.Cl
     ACM <- ACM()
-    NbreClasses <- input$NbreClasses
-    HCPC(ACM, nb.clust = NbreClasses, graph =F)
+    Max <- nrow(ACM$eig)
+    if (Type.Cl == "Hiérarchique"){
+    sliderInput("NbAxes.Cl", label = "1. Nombre d'axes à inclure (max = nbre d'axes total, limité à 100)", min = 1, 
+                max = Max, value = ifelse(Max < 11, Max, 10), step=1)}
+    
   })
+  
+  output$Metric.Cl.Choix <- renderUI({
+    Type.Cl <- input$Type.Cl
+    if (Type.Cl == "Hiérarchique"){
+    selectInput("Metric.Cl", "2. Choix de la métrique",
+                choices=as.list(c("euclidienne","manhattan")),
+                selected="euclidienne")
+    }
+  })
+  
+  output$Agreg.Cl.Choix <- renderUI({
+    Type.Cl <- input$Type.Cl
+    if (Type.Cl == "Hiérarchique"){
+    selectInput("Agreg.Cl", "3. Critère d'agrégation",
+                choices=as.list(c("saut minimum","diamètre","moyennes","ward")),
+                selected="ward")
+    }
+  })
+  
+  output$Part.H.Cl.Choix <- renderUI({
+    Type.Cl <- input$Type.Cl
+    if (Type.Cl == "Hiérarchique"){
+      selectInput("Part.H.Cl", "4. Type de partition",
+                  choices=as.list(c("ascendante","descendante")),
+                  selected="ascendante")
+    }
+  })
+  
+  
+  output$NbreCl.Cl.Choix <- renderUI({
+    Type.Cl <- input$Type.Cl
+    if (Type.Cl == "Hiérarchique"){
+      
+      numericInput("NbreClasses","5. Nombre classes résultantes",5)
+    }    
+    else if (Type.Cl == "Pas de classification"){
+      
+      numericInput("NbreClasses","5. Nombre classes résultantes",1)
+    }
+  })
+  
+ 
+
+
+  # Résultation de la classification ---------------
+
   
   # Arbre selon le nbre de classes :
   cahTree <- reactive({
     ACM <- ACM()
+    NbAxes.Cl <- input$NbAxes.Cl
     NbreClasses <- input$NbreClasses
-    agnes(ACM$ind$coord, method = "ward") 
+    Metric.Cl <- switch(input$Metric.Cl,
+                        "euclidienne"="euclidean",
+                        "manhattan"= "manhattan")
+    Agreg.Cl <- switch(input$Agreg.Cl,
+                       "saut minimum" = "single",
+                       "diamètre"="complete",
+                       "moyennes"="average",
+                       "ward"="ward")
+    agnes(ACM$ind$coord[,1:NbAxes.Cl], method = Agreg.Cl, metric=Metric.Cl) 
   })
   
+  DataClust <- reactive({
+    # On veut : Noms + Classes
+    Donnees <- test3()
+    cahTree <- cahTree()
+    NbreClasses <- input$NbreClasses
+    Agnes.Cl <- cutree(cahTree, k=NbreClasses)
+   # Agnes.Cl.vect <- factor(Agnes.Cl,labels=paste('classe',1:NbreClasses, sep=' '))
+    
+    DataClust <- data.frame(Name=rownames(cahTree$data), clust= cutree(cahTree, k=NbreClasses), stringsAsFactors = F)
+   # DataClust <- data.frame(Name=rownames(cahTree$data), clust=Agnes.Cl.vect, stringsAsFactors = F)
+   
+     DataClust$clust <- as.character(DataClust$clust)
+    
+    # DataClust <-data.frame(Agnes.Cl.vect)
+    # rownames (DataClust) <- rownames(Donnees)
+    # colnames(DataClust) <- "clust"
+    # DataClust$Name <- rownames(DataClust)
+    # 
+    
+    DataClust
+    
+    
+  })
   
-  # C/ EN SORTIE : Tables et graphiques -----------
+  # E/ EN SORTIE : Tables et graphiques -----------
   #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   
@@ -899,27 +1135,6 @@ shinyServer(function(input, output, session) {
     
     
     Type
-  })
-  
-  TableACM <- reactive({
-    if (length(input$VarPourACM)<2) return (NULL)
-    Vars <- input$VarPourACM
-    VarQuanti <- input$VarIllusQuantiPourACM
-    BiosFinal <- test3()
-    TableACM <- data.frame(BiosFinal[,Vars])
-    for (i in 1:ncol(TableACM)) {
-      TableACM[,i] <- factor(TableACM[,i])
-    }
-    if (length(VarQuanti)==0) {
-      TableACM <- TableACM
-    } else{
-      for (i in 1:length(VarQuanti)){
-        TableACM[,unlist(VarQuanti)[i]] <- as.numeric(TableACM[,unlist(VarQuanti)[i]])
-      }
-    }
-    TableACM
-    
-    
   })
 
   #  Valeurs propres :
@@ -1204,7 +1419,7 @@ shinyServer(function(input, output, session) {
   output$TableVar <- renderDataTable({
     
     validate(
-      need(length(input$VarPourACM)>1, "Choisir au moins 2 variables pour l'ACM")
+      need(length(input$VarPourACM)>1, "")
     )
     
     TableVar <- TableVar()
@@ -1229,7 +1444,7 @@ shinyServer(function(input, output, session) {
   output$TableVar2 <- renderDataTable({
     
     validate(
-      need(length(input$VarPourACM)>1, "Choisir au moins 2 variables pour l'ACM")
+      need(length(input$VarPourACM)>1, "")
     )
     
     TableVar2 <- TableVar2()
@@ -1246,7 +1461,7 @@ shinyServer(function(input, output, session) {
     )
     
     res <-res()
-    cah <- cah()
+ #   cah <- cah()
     ACM <- ACM()
     IndAxe1 <- input$IndAxe1
     IndAxe2 <- input$IndAxe2
@@ -1257,6 +1472,10 @@ shinyServer(function(input, output, session) {
     MinContrib1 <- input$MinContrib1
     NbreClasses <- input$NbreClasses
     Ellipse <- input$Ellipse
+    VarClassesGraphe <- input$VarClassesGraphe
+    ID <- input$ID
+    TableACM <- test3()
+    data.clust <- DataClust()
     
     if (NbreClasses==1) {
       GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
@@ -1266,15 +1485,34 @@ shinyServer(function(input, output, session) {
                                xlim = c(MinCoord1-.25, MaxCoord1+.25),
                                ylim = c(MinCoord2-.25, MaxCoord2+.25))
     }else{
-      cah$data.clust$Name <- row.names(cah$data.clust)
-      res$quali_data <- merge(res$quali_data, cah$data.clust[,c("Name","clust")], by="Name", all.x=T)
       
-      GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
-                               col_var = "clust", lab_var = "Name", labels_size = 12,
-                               point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
-                               ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
-                               xlim = c(MinCoord1-.25, MaxCoord1+.25),
-                               ylim = c(MinCoord2-.25, MaxCoord2+.25))
+      if (VarClassesGraphe==" "){
+       # cah$data.clust$Name <- row.names(cah$data.clust)
+        res$quali_data <- merge(res$quali_data, data.clust[,c("Name","clust")], by="Name", all.x=T)
+        
+        GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
+                                 col_var = "clust", lab_var = "Name", labels_size = 12,
+                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
+                                 ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
+                                 xlim = c(MinCoord1-.25, MaxCoord1+.25),
+                                 ylim = c(MinCoord2-.25, MaxCoord2+.25))
+        
+      }else{
+        
+        TableACM$Name <- rownames(TableACM)
+        TableACM$Name <- as.character(TableACM$Name)
+        res$quali_data <- merge( res$quali_data, TableACM[,c("Name",VarClassesGraphe)], by="Name", all.x=T)
+        names(res$quali_data) <- gsub("\\.y", "", names(res$quali_data))
+        GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
+                                 col_var = VarClassesGraphe, lab_var = "Name", labels_size = 12,
+                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
+                                 ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
+                                 xlim = c(MinCoord1-.25, MaxCoord1+.25),
+                                 ylim = c(MinCoord2-.25, MaxCoord2+.25))
+        
+        
+        
+                               }
     }
     GraphInd
   })
@@ -1287,34 +1525,57 @@ shinyServer(function(input, output, session) {
     )
     
     res <-res()
-    cah <- cah()
+  #  cah <- cah()
     MinContrib2 <- input$MinContrib2
     
     ACM <- ACM()
-    MaxCoord3 <- max(ACM$ind$coord[,3])
-    MinCoord3 <- min(ACM$ind$coord[,3])
-    MaxCoord4 <- max(ACM$ind$coord[,4])
-    MinCoord4 <- min(ACM$ind$coord[,4])
+    IndAxe3 <- input$IndAxe3
+    IndAxe4 <- input$IndAxe4
+    MaxCoord3 <- max(ACM$ind$coord[,IndAxe3])
+    MinCoord3 <- min(ACM$ind$coord[,IndAxe3])
+    MaxCoord4 <- max(ACM$ind$coord[,IndAxe4])
+    MinCoord4 <- min(ACM$ind$coord[,IndAxe4])
     NbreClasses <- input$NbreClasses
     Ellipse2 <- input$Ellipse2
+    VarClassesGraphe <- input$VarClassesGraphe
+    ID <- input$ID
+    TableACM <- test3()
+    data.clust <- DataClust()
     
     if (NbreClasses<2) {
-      GraphInd2 <- MCA_ind_plot(res, xax = 3, yax = 4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
+      GraphInd2 <- MCA_ind_plot(res, xax = IndAxe3, yax = IndAxe4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
                                 lab_var = "Name", labels_size = 12,
                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
                                 ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
                                 xlim = c(MinCoord3-.25, MaxCoord3+.25),
                                 ylim = c(MinCoord4-.25, MaxCoord4+.25))
     }else{
-      cah$data.clust$Name <- row.names(cah$data.clust)
-      res$quali_data <- merge(res$quali_data, cah$data.clust[,c("Name","clust")], by="Name", all.x=T)
       
-      GraphInd2 <- MCA_ind_plot(res, xax = 3, yax = 4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
-                                col_var = "clust", lab_var = "Name", labels_size = 12,
-                                point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
-                                ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
-                                xlim = c(MinCoord3-.25, MaxCoord3+.25),
-                                ylim = c(MinCoord4-.25, MaxCoord4+.25))
+      if (VarClassesGraphe==" "){
+       # cah$data.clust$Name <- row.names(cah$data.clust)
+        res$quali_data <- merge(res$quali_data, data.clust[,c("Name","clust")], by="Name", all.x=T)
+        
+        GraphInd2 <- MCA_ind_plot(res, xax = IndAxe3, yax = IndAxe4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
+                                 col_var = "clust", lab_var = "Name", labels_size = 12,
+                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
+                                 ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
+                                 xlim = c(MinCoord3-.25, MaxCoord3+.25),
+                                 ylim = c(MinCoord4-.25, MaxCoord4+.25))
+        
+      }else{
+        TableACM$Name <- rownames(TableACM)
+        TableACM$Name <- as.character(TableACM$Name)
+        res$quali_data <- merge( res$quali_data, TableACM[,c("Name",VarClassesGraphe)], by="Name", all.x=T)
+        names(res$quali_data) <- gsub("\\.y", "", names(res$quali_data))
+        GraphInd2 <- MCA_ind_plot(res, xax = IndAxe3, yax = IndAxe4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
+                                 col_var = VarClassesGraphe, lab_var = "Name", labels_size = 12,
+                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
+                                 ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
+                                 xlim = c(MinCoord3-.25, MaxCoord3+.25),
+                                 ylim = c(MinCoord4-.25, MaxCoord4+.25))
+        
+        
+      }
     }
     GraphInd2
   })
@@ -1367,23 +1628,60 @@ shinyServer(function(input, output, session) {
   })
   
   output$plot3 <- renderPlot({
-    cah <- cah()
-    plot(cah, choice = "bar")
+    cah <- cahTree()
+    NbreClasses <- input$NbreClasses
+    Max <-  ifelse(NbreClasses >5, NbreClasses*2, 10)
+    tri <- data.frame(var=sort(cah$height[1:Max], decreasing = TRUE),
+                      axe=seq(1,Max,1))
+    tri$col <- ifelse(tri$axe <= NbreClasses, "1","2")
+    tri$axe<-factor(tri$axe)
+    
+    ggplot(data=tri, aes(x=axe, y=var, fill=col))+geom_bar(stat="identity",
+                                                           colour="black")+
+      labs(x="Nombre de classes", y="Inertie") +
+      ggtitle("")+
+      scale_fill_manual(values=c('brown4','grey'),
+                        guide=FALSE)+
+      theme_light()+theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1,size=10),
+                          axis.title=element_text(size=12,face="bold"),
+                          axis.title.y=element_blank(),
+                          axis.text.y=element_blank(),
+                          legend.text=element_text(size=10),
+                          title = element_text(size=12, face="bold"),
+                          plot.title=element_text(hjust = 0.5))+theme(legend.position="none")
+    
+    
+    
   })
   
   # Table des individus selon les groupes générés par la classifications
 
   IndEtClasses <- reactive({
-    cah <- cah()
-    cah$data.clust$Name <- row.names(cah$data.clust)
-    IndEtClasses <- data.frame (Noms = cah$data.clust$Name ,
-                                Classes = cah$data.clust$clust)
+   # cah <- cah()
+   # cah$data.clust$Name <- row.names(cah$data.clust)
+    data.clust <- DataClust()
+    IndEtClasses <- data.frame (Noms = data.clust$Name ,
+                                Classes = data.clust$clust)
   })
   output$IndEtClasses <- renderDataTable({
+    
+    validate(
+      need(nrow(donnees_entree())!=0, "")
+    )
+    validate(
+      need(input$ID!= " ", "")
+    )
     IndEtClasses <- IndEtClasses()
     
   })
   output$TableEffClasses <- renderTable({
+    
+    validate(
+      need(nrow(donnees_entree())!=0, "")
+    )
+    validate(
+      need(input$ID!= " ", "")
+    )
     
     IndEtClasses <- IndEtClasses()
     t<- freq(IndEtClasses$Classes, total= T, cum = F)
@@ -1396,6 +1694,21 @@ shinyServer(function(input, output, session) {
   # Selection de la variable pour croisé avec les classes :
   
   output$SelectVarClasses <- renderUI ({
+    
+    ## Validations / erreurs :
+    validate(
+      need(nrow(donnees_entree())!=0, "")
+    )
+    
+    
+    validate(
+      need(input$ID!= " ", "")
+    )
+    
+    
+    
+    ## Contenu :
+    
     selectInput("VariableClasses", "Variable :",
                 choices=as.list(c(" ",names(test3()))),selected=" ")
   })
@@ -1405,6 +1718,18 @@ shinyServer(function(input, output, session) {
   # Croisement classe et autre variable :
 
   IndEtTableDep <-  reactive ({
+    
+    ## Validations / erreurs :
+    validate(
+      need(nrow(donnees_entree())!=0, "")
+    )
+    
+    
+    validate(
+      need(input$ID!= " ", "")
+    )
+    
+    ## Contenu
     TableDep <- test3()
     IndEtClasses <- IndEtClasses()
     ID <- input$LabelGraphInd
@@ -1452,6 +1777,26 @@ shinyServer(function(input, output, session) {
     
   })
   
+  
+  # Selection de la variable pour représentation des individus dans les graphiques :
+  
+  output$SelectVarClassesGraphe <- renderUI ({
+    
+    ## Validations / erreurs :
+    validate(
+      need(nrow(donnees_entree())!=0, "")
+    )
+    
+    validate(
+      need(input$ID!= " ", "")
+    )
+    
+    selectInput("VarClassesGraphe", "Variables en couleurs (classes, par défaut) :",
+                choices=as.list(c(" ",names(test3()))),selected=" ")
+  })
+  
+  
+  
   output$TableVarClasses <- renderTable({
     TableVarClasses <- TableVarClasses ()
   })
@@ -1477,8 +1822,8 @@ shinyServer(function(input, output, session) {
   #    summary(tmp)
   #  })
   
-  # D/ Boutons et téléchargements
-  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\===
+  # F/ Boutons et téléchargements ------------
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   # A REVOIR / FAIRE - NON UTILISE
   #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\====
@@ -1669,7 +2014,8 @@ shinyServer(function(input, output, session) {
     c
   })
   
-  
+  # G/ Informations synthétiques sur les options de la session -------------
+  #\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
   
   
   TableMeta <- reactive ({
@@ -1713,17 +2059,28 @@ shinyServer(function(input, output, session) {
                     Variable3, Operateur3, Modalite3,OperateurMid3,
                     Variable4, Operateur4, Modalite4,
                     sep=" ")
-    
+    Type.Cl <- input$Type.Cl
+    Metric.Cl <- input$Metric.Cl
+    Agreg.Cl <- input$Agreg.Cl
+    NbAxes.Cl <- input$NbAxes.Cl
+    Part.H.Cl <- input$Part.H.Cl
+    NbreClasses <- input$NbreClasses
+    VarClassesGraphe <- input$VarClassesGraphe
+      
+      
     # Tables synthétisant les informations métadonnées :
     
     TableMeta <- data.frame (Champs = c("Date et heure",
                                         "Nom du fichier",
                                         "Identifiant principal",
-                                        "Identifiant graphique",
+                                        "Identifiant graphique des individus",
+                                        "Couleurs dans le graphe des individus",
                                         "Filtre(s) sur les individus",
                                         "Variables incluses dans l'ACM",
                                         "Dont variables illustratives qualitatives",
-                                        "Dont variables illustratives quantitatives"), Valeurs = rep("", 8),
+                                        "Dont variables illustratives quantitatives",
+                                        "Type de classification",
+                                        "Options sur la classification"), Valeurs = rep("", 11),
                              stringsAsFactors = F)
     
     TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Date et heure",
@@ -1734,8 +2091,16 @@ shinyServer(function(input, output, session) {
     
     TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Identifiant principal",
                                  input$ID, TableMeta$Valeurs)
-    TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Identifiant graphique",
+    TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Identifiant graphique des individus",
                                  input$LabelGraphInd, TableMeta$Valeurs)
+    TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Couleurs dans le graphe des individus",
+                                 ifelse(VarClassesGraphe == " ",
+                                        ifelse(NbreClasses == 1,
+                                               "Aucune", 
+                                               "Les classes"),
+                                        VarClassesGraphe), 
+                                 TableMeta$Valeurs)
+    
     TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Filtre(s) sur les individus",
                                  filtre, TableMeta$Valeurs)
     TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Variables incluses dans l'ACM",
@@ -1744,6 +2109,21 @@ shinyServer(function(input, output, session) {
                                  Illus, TableMeta$Valeurs)
     TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Dont variables illustratives quantitatives",
                                  IllusQuanti, TableMeta$Valeurs)
+    
+    TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Type de classification",
+                                 Type.Cl, TableMeta$Valeurs)
+    
+    TableMeta$Valeurs <- ifelse (TableMeta$Champs=="Options sur la classification",
+                                 ifelse(Type.Cl == "Pas de classification","-",
+                                        paste0("Métrique ",
+                                               Metric.Cl,
+                                               ", agrégation ",
+                                               Agreg.Cl,
+                                               ", class. ",
+                                               Part.H.Cl,", ", NbreClasses, " classes")), TableMeta$Valeurs)
+    
+    
+    
     TableMeta
   })
   
