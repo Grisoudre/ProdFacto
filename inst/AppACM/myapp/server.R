@@ -1478,17 +1478,28 @@ shinyServer(function(input, output, session) {
     TableACM <- test3()
     data.clust <- DataClust()
     
-    if (NbreClasses==1) {
+    if (VarClassesGraphe!=" "){
+      
+      TableACM$Name <- rownames(TableACM)
+      TableACM$Name <- as.character(TableACM$Name)
+      res$quali_data <- merge( res$quali_data, TableACM[,c("Name",VarClassesGraphe)], by="Name", all.x=T)
+      names(res$quali_data) <- gsub("\\.y", "", names(res$quali_data))
       GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
-                               lab_var = "Name", labels_size = 12,
+                               col_var = VarClassesGraphe, lab_var = "Name", labels_size = 12,
                                point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
                                ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
                                xlim = c(MinCoord1-.25, MaxCoord1+.25),
                                ylim = c(MinCoord2-.25, MaxCoord2+.25))
-    }else{
       
-      if (VarClassesGraphe==" "){
-       # cah$data.clust$Name <- row.names(cah$data.clust)
+    } else {
+      if (NbreClasses==1){
+        GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
+                                 lab_var = "Name", labels_size = 12,
+                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
+                                 ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
+                                 xlim = c(MinCoord1-.25, MaxCoord1+.25),
+                                 ylim = c(MinCoord2-.25, MaxCoord2+.25))
+      } else {
         res$quali_data <- merge(res$quali_data, data.clust[,c("Name","clust")], by="Name", all.x=T)
         
         GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
@@ -1497,24 +1508,10 @@ shinyServer(function(input, output, session) {
                                  ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
                                  xlim = c(MinCoord1-.25, MaxCoord1+.25),
                                  ylim = c(MinCoord2-.25, MaxCoord2+.25))
-        
-      }else{
-        
-        TableACM$Name <- rownames(TableACM)
-        TableACM$Name <- as.character(TableACM$Name)
-        res$quali_data <- merge( res$quali_data, TableACM[,c("Name",VarClassesGraphe)], by="Name", all.x=T)
-        names(res$quali_data) <- gsub("\\.y", "", names(res$quali_data))
-        GraphInd <- MCA_ind_plot(res, xax = IndAxe1, yax = IndAxe2,ind_sup = FALSE, ind_lab_min_contrib = MinContrib1,
-                                 col_var = VarClassesGraphe, lab_var = "Name", labels_size = 12,
-                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
-                                 ellipses = Ellipse, transitions = TRUE, labels_positions = NULL,
-                                 xlim = c(MinCoord1-.25, MaxCoord1+.25),
-                                 ylim = c(MinCoord2-.25, MaxCoord2+.25))
-        
-        
-        
-                               }
+      }
     }
+        
+    
     GraphInd
   })
   
@@ -1543,17 +1540,28 @@ shinyServer(function(input, output, session) {
     TableACM <- test3()
     data.clust <- DataClust()
     
-    if (NbreClasses<2) {
-      GraphInd2 <- MCA_ind_plot(res, xax = IndAxe3, yax = IndAxe4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
-                                lab_var = "Name", labels_size = 12,
-                                point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
-                                ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
-                                xlim = c(MinCoord3-.25, MaxCoord3+.25),
-                                ylim = c(MinCoord4-.25, MaxCoord4+.25))
-    }else{
+    if (VarClassesGraphe!=" "){
       
-      if (VarClassesGraphe==" "){
-       # cah$data.clust$Name <- row.names(cah$data.clust)
+      TableACM$Name <- rownames(TableACM)
+      TableACM$Name <- as.character(TableACM$Name)
+      res$quali_data <- merge( res$quali_data, TableACM[,c("Name",VarClassesGraphe)], by="Name", all.x=T)
+      names(res$quali_data) <- gsub("\\.y", "", names(res$quali_data))
+      GraphInd2 <- MCA_ind_plot(res, xax = IndAxe3, yax = IndAxe4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
+                               col_var = VarClassesGraphe, lab_var = "Name", labels_size = 12,
+                               point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
+                               ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
+                               xlim = c(MinCoord3-.25, MaxCoord3+.25),
+                               ylim = c(MinCoord4-.25, MaxCoord4+.25))
+      
+    } else {
+      if (NbreClasses==1){
+        GraphInd2 <- MCA_ind_plot(res, xax = IndAxe3, yax = IndAxe4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
+                                 lab_var = "Name", labels_size = 12,
+                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
+                                 ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
+                                 xlim = c(MinCoord3-.25, MaxCoord3+.25),
+                                 ylim = c(MinCoord4-.25, MaxCoord4+.25))
+      } else {
         res$quali_data <- merge(res$quali_data, data.clust[,c("Name","clust")], by="Name", all.x=T)
         
         GraphInd2 <- MCA_ind_plot(res, xax = IndAxe3, yax = IndAxe4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
@@ -1562,22 +1570,10 @@ shinyServer(function(input, output, session) {
                                  ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
                                  xlim = c(MinCoord3-.25, MaxCoord3+.25),
                                  ylim = c(MinCoord4-.25, MaxCoord4+.25))
-        
-      }else{
-        TableACM$Name <- rownames(TableACM)
-        TableACM$Name <- as.character(TableACM$Name)
-        res$quali_data <- merge( res$quali_data, TableACM[,c("Name",VarClassesGraphe)], by="Name", all.x=T)
-        names(res$quali_data) <- gsub("\\.y", "", names(res$quali_data))
-        GraphInd2 <- MCA_ind_plot(res, xax = IndAxe3, yax = IndAxe4,ind_sup = FALSE, ind_lab_min_contrib = MinContrib2,
-                                 col_var = VarClassesGraphe, lab_var = "Name", labels_size = 12,
-                                 point_opacity = 0.5, opacity_var = "Contrib", point_size = 64,
-                                 ellipses = Ellipse2, transitions = TRUE, labels_positions = NULL,
-                                 xlim = c(MinCoord3-.25, MaxCoord3+.25),
-                                 ylim = c(MinCoord4-.25, MaxCoord4+.25))
-        
-        
       }
     }
+    
+    
     GraphInd2
   })
   
