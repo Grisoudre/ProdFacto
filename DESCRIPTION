@@ -1,7 +1,7 @@
 Package: ProdFacto
 Type: Package
 Title: Analyses factorielles
-Version: 0.3
+Version: 3.0
 Imports: shiny,
          FactoMineR,
          stringr,
